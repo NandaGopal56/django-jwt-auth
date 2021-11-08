@@ -1,9 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import update_last_login
-from rest_framework_jwt.settings import api_settings
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
-
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
 
@@ -15,9 +14,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
         return user
-
-JWT_PAYLOAD_HANDLER = api_settings.JWT_PAYLOAD_HANDLER
-JWT_ENCODE_HANDLER = api_settings.JWT_ENCODE_HANDLER
 
 class UserLoginSerializer(serializers.Serializer):
 
@@ -34,8 +30,7 @@ class UserLoginSerializer(serializers.Serializer):
                 'A user with this email and password is not found.'
             )
         try:
-            payload = JWT_PAYLOAD_HANDLER(user)
-            jwt_token = JWT_ENCODE_HANDLER(payload)
+            access_token = str(RefreshToken.for_user(user).access_token)
             update_last_login(None, user)
         except User.DoesNotExist:
             raise serializers.ValidationError(
@@ -43,5 +38,5 @@ class UserLoginSerializer(serializers.Serializer):
             )
         return {
             'email':user.email,
-            'token': jwt_token
+            'token': access_token
         }

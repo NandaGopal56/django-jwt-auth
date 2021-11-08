@@ -3,7 +3,8 @@ from rest_framework import status
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+from rest_framework_simplejwt.backends import TokenBackend
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.decorators import authentication_classes, permission_classes, api_view
 from .serializers import UserRegistrationSerializer, UserLoginSerializer
 from .models import User
@@ -47,7 +48,7 @@ class UserLoginView(RetrieveAPIView):
 class UserProfileView_class(RetrieveAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    authentication_class = JWTAuthentication
 
     def get(self, request):
         try:
@@ -75,7 +76,7 @@ class UserProfileView_class(RetrieveAPIView):
         return Response(response, status=status_code)
 
 @api_view(['GET'])
-@authentication_classes([JSONWebTokenAuthentication])
+@authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def UserProfileView_function(request, format=None):
     try:
