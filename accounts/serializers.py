@@ -19,7 +19,8 @@ class UserLoginSerializer(serializers.Serializer):
 
     email = serializers.CharField(max_length=255)
     password = serializers.CharField(max_length=128, write_only=True)
-    token = serializers.CharField(max_length=255, read_only=True)
+    access_token = serializers.CharField(max_length=255, read_only=True)
+    refresh_token = serializers.CharField(max_length=255, read_only=True)
 
     def validate(self, data):
         email = data.get("email", None)
@@ -31,6 +32,7 @@ class UserLoginSerializer(serializers.Serializer):
             )
         try:
             access_token = str(RefreshToken.for_user(user).access_token)
+            refresh_token = str(RefreshToken.for_user(user))
             update_last_login(None, user)
         except User.DoesNotExist:
             raise serializers.ValidationError(
@@ -38,5 +40,6 @@ class UserLoginSerializer(serializers.Serializer):
             )
         return {
             'email':user.email,
-            'token': access_token
+            'access_token': access_token,
+            'refresh_token': refresh_token
         }

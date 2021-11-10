@@ -41,7 +41,8 @@ class UserLoginView(RetrieveAPIView):
             'success' : 'True',
             'status code' : status.HTTP_200_OK,
             'message': 'User logged in  successfully',
-            'token' : serializer.data['token'],
+            'access_token': serializer.data['access_token'],
+            'refresh_token': serializer.data['refresh_token']
             }
         status_code = status.HTTP_200_OK
 
