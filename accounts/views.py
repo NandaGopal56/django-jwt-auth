@@ -3,10 +3,12 @@ from rest_framework import status
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_simplejwt.backends import TokenBackend
+import rest_framework_simplejwt
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.decorators import authentication_classes, permission_classes, api_view
 from .serializers import UserRegistrationSerializer, UserLoginSerializer
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
+from rest_framework.views import APIView
 from .models import User
 
 class UserRegistrationView(CreateAPIView):
@@ -44,6 +46,22 @@ class UserLoginView(RetrieveAPIView):
         status_code = status.HTTP_200_OK
 
         return Response(response, status=status_code)
+
+
+#Blacklist refresh token
+class BlacklistRefreshView(APIView): 
+
+    permission_classes = (IsAuthenticated,)
+    authentication_class = JWTAuthentication
+    
+    def post(self, request):
+        try:
+            token = RefreshToken(request.data.get('refresh'))
+            token.blacklist()
+            return Response("Success")
+        except rest_framework_simplejwt.exceptions.TokenError:
+            return Response("Token is blacklisted")
+
 
 class UserProfileView_class(RetrieveAPIView):
 
