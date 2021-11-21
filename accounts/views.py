@@ -1,3 +1,4 @@
+from django.contrib.messages import api
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
@@ -41,8 +42,8 @@ class UserRegistrationView(CreateAPIView):
 def send_activation_email(request, user, email):
     print(request, user, email)
     current_site = get_current_site(request)
-    mail_subject = 'Activate your blog account.'
-    message = render_to_string('acc_active_email.html', {
+    mail_subject = f'Activate your account with {current_site.domain}'
+    message = render_to_string('account_activateion.html', {
         'user': user,
         'domain': current_site.domain,
         'uid':urlsafe_base64_encode(force_bytes(user.pk)),
@@ -53,7 +54,7 @@ def send_activation_email(request, user, email):
     )
     email.send()
 
-def activate(request, uidb64, token):
+def activate_user(request, uidb64, token):
     try:
         uid = force_text(urlsafe_base64_decode(uidb64))
         user = User.objects.get(pk=uid)
@@ -66,6 +67,117 @@ def activate(request, uidb64, token):
     else:
         return HttpResponse('Activation link is invalid!')
 
+from .forms import UserPasswordResetForm
+from django.contrib import messages
+from .tokens import password_reset_token
+from django.contrib.auth import update_session_auth_hash
+
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def password_reset_request(request):
+    """User forgot password form view."""
+    if request.method == "POST":
+        email = 'ngopal561998@gmail.com'
+        print(request.POST)
+        print(email)
+        qs = User.objects.filter(email=email)
+        site = get_current_site(request)
+        if len(qs) > 0:
+            user = qs[0]
+            user.active = False  # User needs to be inactive for the reset password duration
+            user.save()
+            print(user)
+
+            mail_subject='Reset password for domain.com'
+            message = render_to_string('password_reset_mail.html', {
+                'user': user,
+                'domain': site.domain,
+                'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+                'token': account_activation_token.make_token(user),
+            })
+            email = EmailMessage(
+                            mail_subject, message, to=[email]
+                )
+            email.send()
+
+        messages.add_message(request, messages.SUCCESS, 'Email {0} submitted.'.format(email))
+        msg = 'If this mail address is known to us, an email will be sent to your account.'
+    else:
+        messages.add_message(request, messages.WARNING, 'Email not submitted.')
+        return HttpResponse('Email is not present with us!')
+
+    return HttpResponse('Password reset email sent')
+
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+def resetPassword(request, uidb64, token):
+    if request.method == 'POST':
+        print("---------reset password POST method to update password-----------")
+        try:
+            uid = force_text(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+            print(user)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
+            messages.add_message(request, messages.WARNING, str(e))
+            user = None
+
+        if user is not None and password_reset_token.check_token(user, token):
+            form = UserPasswordResetForm(user=user, data=request.POST)
+            print(form)
+            if form.is_valid():
+                print("form is valid")
+                try:
+                    form.save()
+                    update_session_auth_hash(request, form.user)
+                    user.active = True
+                    user.save()
+                    messages.add_message(request, messages.SUCCESS, 'Password reset successfully.')
+                    return HttpResponse('Password reset successfull !!')
+                except Exception as e:
+                    print("unsuccessfull:...", str(e))
+            else:
+                return HttpResponse('Sorry, Password reset unsuccessfull !!')
+        else:
+            messages.add_message(request, messages.WARNING, 'Password reset link is invalid.')
+            messages.add_message(request, messages.WARNING, 'Please request a new password reset.')
+
+    try:
+        uid = force_text(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
+        messages.add_message(request, messages.WARNING, str(e))
+        user = None
+
+    if user is not None and password_reset_token.check_token(user, token):
+        context = {
+            'form': UserPasswordResetForm(user),
+            'uid': uidb64,
+            'token': token,
+            'valid': True
+        }
+        return render(request, 'password_reset_conf.html', context)
+    else:
+        messages.add_message(request, messages.WARNING, 'Password reset link is invalid.')
+        messages.add_message(request, messages.WARNING, 'Please request a new password reset.')
+
+    return HttpResponse('Password reset link is invalid.')
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class UserLoginView(RetrieveAPIView):
 
@@ -76,7 +188,7 @@ class UserLoginView(RetrieveAPIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         response = {
-            'success' : 'True',
+            'success' : True,
             'status code' : status.HTTP_200_OK,
             'message': 'User logged in  successfully',
             'access_token': serializer.data['access_token'],
