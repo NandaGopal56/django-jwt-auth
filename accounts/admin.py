@@ -30,3 +30,16 @@ class UserAdmin(BaseUserAdmin):
 
 admin.site.register(User, UserAdmin)
 
+
+#BUG in rest-famework-simpleJWT: in rest-famework overwrite the permision to delte oustanding tokens. so you can delete teh users
+#RESOURCE: https://github.com/jazzband/djangorestframework-simplejwt/issues/266
+
+from rest_framework_simplejwt import token_blacklist
+
+class OutstandingTokenAdmin(token_blacklist.admin.OutstandingTokenAdmin):
+
+    def has_delete_permission(self, *args, **kwargs):
+        return True
+
+admin.site.unregister(token_blacklist.models.OutstandingToken)
+admin.site.register(token_blacklist.models.OutstandingToken, OutstandingTokenAdmin)

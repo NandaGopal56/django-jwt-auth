@@ -4,7 +4,7 @@ from django.contrib.auth.models import(
 )
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, first_name, last_name, password=None, is_active=True, is_staff=False, is_admin=False):
+    def create_user(self, email, first_name, last_name, password=None, is_active=False, is_staff=False, is_admin=False):
         if not first_name:
             raise ValueError("Users must have an first name")
         if not last_name:
@@ -31,7 +31,8 @@ class UserManager(BaseUserManager):
             first_name,
             last_name,
             password=password,
-            is_staff=True
+            is_staff=True,
+            is_active = True
         )
         return user
 
@@ -43,7 +44,8 @@ class UserManager(BaseUserManager):
             last_name,
             password=password,
             is_admin=True,
-            is_staff=True
+            is_staff=True,
+            is_active = True
         )
         return user
 
@@ -52,7 +54,7 @@ class User(AbstractBaseUser):
     email = models.EmailField(max_length=254, unique=True)
     first_name = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=50, blank=True, null=True)
-    active = models.BooleanField(default=True)
+    active = models.BooleanField(default=False)
     staff = models.BooleanField(default=False)
     admin = models.BooleanField(default=False)
 

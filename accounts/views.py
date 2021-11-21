@@ -7,9 +7,17 @@ import rest_framework_simplejwt
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.decorators import authentication_classes, permission_classes, api_view
 from .serializers import UserRegistrationSerializer, UserLoginSerializer
-from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
+
+from .tokens import account_activation_token
+from django.contrib.sites.shortcuts import get_current_site
+from django.template.loader import render_to_string
+from django.utils.encoding import force_bytes, force_text
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.core.mail import EmailMessage
 from .models import User
+from django.http import HttpResponse
 
 class UserRegistrationView(CreateAPIView):
 
@@ -19,7 +27,8 @@ class UserRegistrationView(CreateAPIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user = serializer.save()
+        send_activation_email(request, user, request.data['email'])
         status_code = status.HTTP_201_CREATED
         response = {
             'success' : True,
@@ -28,6 +37,35 @@ class UserRegistrationView(CreateAPIView):
             }
         
         return Response(response, status=status_code)
+
+def send_activation_email(request, user, email):
+    print(request, user, email)
+    current_site = get_current_site(request)
+    mail_subject = 'Activate your blog account.'
+    message = render_to_string('acc_active_email.html', {
+        'user': user,
+        'domain': current_site.domain,
+        'uid':urlsafe_base64_encode(force_bytes(user.pk)),
+        'token':account_activation_token.make_token(user),
+    })
+    email = EmailMessage(
+                mail_subject, message, to=[email]
+    )
+    email.send()
+
+def activate(request, uidb64, token):
+    try:
+        uid = force_text(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except(TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+    if user is not None and account_activation_token.check_token(user, token):
+        user.active = True
+        user.save()
+        return HttpResponse('Thank you for your email confirmation. Now you can login your account.')
+    else:
+        return HttpResponse('Activation link is invalid!')
+
 
 class UserLoginView(RetrieveAPIView):
 
