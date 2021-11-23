@@ -127,7 +127,7 @@ def resetPassword(request, uidb64, token):
                     user.save()
                     return HttpResponse('Password reset successfull !!')
                 except Exception as e:
-                    print("unsuccessfull:...", str(e))
+                    return HttpResponse('Sorry, something went wrong. Please try agaiin or contact us.', status=400)
             else:
                 return HttpResponse('Sorry, Password reset unsuccessfull, Please check the required conditions to set password !!', status=400)
         else:
