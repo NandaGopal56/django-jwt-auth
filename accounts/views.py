@@ -19,6 +19,11 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.core.mail import EmailMessage
 from .models import User
 from django.http import HttpResponse
+from .forms import UserPasswordResetForm
+from django.contrib import messages
+from .tokens import password_reset_token
+from django.contrib.auth import update_session_auth_hash
+
 
 class UserRegistrationView(CreateAPIView):
 
@@ -66,12 +71,6 @@ def activate_user(request, uidb64, token):
         return HttpResponse('Thank you for your email confirmation. Now you can login your account.')
     else:
         return HttpResponse('Activation link is invalid!')
-
-from .forms import UserPasswordResetForm
-from django.contrib import messages
-from .tokens import password_reset_token
-from django.contrib.auth import update_session_auth_hash
-
 
 
 @api_view(["POST"])
