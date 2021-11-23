@@ -40,7 +40,6 @@ class UserRegistrationView(CreateAPIView):
         return Response(response, status=status_code)
 
 def send_activation_email(request, user, email):
-    print(request, user, email)
     current_site = get_current_site(request)
     mail_subject = f'Activate your account with {current_site.domain}'
     message = render_to_string('account_activateion.html', {
@@ -52,6 +51,7 @@ def send_activation_email(request, user, email):
     email = EmailMessage(
                 mail_subject, message, to=[email]
     )
+    email.content_subtype = "html"
     email.send()
 
 def activate_user(request, uidb64, token):
@@ -79,18 +79,14 @@ from django.contrib.auth import update_session_auth_hash
 def password_reset_request(request):
     """User forgot password form view."""
     if request.method == "POST":
-        email = 'ngopal561998@gmail.com'
-        print(request.POST)
-        print(email)
+        email = request.data.get("email")
         qs = User.objects.filter(email=email)
         site = get_current_site(request)
         if len(qs) > 0:
             user = qs[0]
             user.active = False  # User needs to be inactive for the reset password duration
             user.save()
-            print(user)
-
-            mail_subject='Reset password for domain.com'
+            mail_subject = f'Reset password for {site.domain}'
             message = render_to_string('password_reset_mail.html', {
                 'user': user,
                 'domain': site.domain,
@@ -100,15 +96,11 @@ def password_reset_request(request):
             email = EmailMessage(
                             mail_subject, message, to=[email]
                 )
+            email.content_subtype = "html"
             email.send()
-
-        messages.add_message(request, messages.SUCCESS, 'Email {0} submitted.'.format(email))
-        msg = 'If this mail address is known to us, an email will be sent to your account.'
-    else:
-        messages.add_message(request, messages.WARNING, 'Email not submitted.')
-        return HttpResponse('Email is not present with us!')
-
-    return HttpResponse('Password reset email sent')
+        else:
+            return HttpResponse('User does not exist with this email !', status=400)
+        return HttpResponse('Password reset email sent')
 
 
 
@@ -116,7 +108,6 @@ def password_reset_request(request):
 @permission_classes([AllowAny])
 def resetPassword(request, uidb64, token):
     if request.method == 'POST':
-        print("---------reset password POST method to update password-----------")
         try:
             uid = force_text(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
@@ -129,22 +120,18 @@ def resetPassword(request, uidb64, token):
             form = UserPasswordResetForm(user=user, data=request.POST)
             print(form)
             if form.is_valid():
-                print("form is valid")
                 try:
                     form.save()
                     update_session_auth_hash(request, form.user)
                     user.active = True
                     user.save()
-                    messages.add_message(request, messages.SUCCESS, 'Password reset successfully.')
                     return HttpResponse('Password reset successfull !!')
                 except Exception as e:
                     print("unsuccessfull:...", str(e))
             else:
-                return HttpResponse('Sorry, Password reset unsuccessfull !!')
+                return HttpResponse('Sorry, Password reset unsuccessfull, Please check the required conditions to set password !!', status=400)
         else:
-            messages.add_message(request, messages.WARNING, 'Password reset link is invalid.')
-            messages.add_message(request, messages.WARNING, 'Please request a new password reset.')
-
+            return HttpResponse('Password reset link is invalid. Please request a new password reset. !!', status=400)
     try:
         uid = force_text(urlsafe_base64_decode(uidb64))
         user = User.objects.get(pk=uid)
@@ -161,21 +148,7 @@ def resetPassword(request, uidb64, token):
         }
         return render(request, 'password_reset_conf.html', context)
     else:
-        messages.add_message(request, messages.WARNING, 'Password reset link is invalid.')
-        messages.add_message(request, messages.WARNING, 'Please request a new password reset.')
-
-    return HttpResponse('Password reset link is invalid.')
-
-
-
-
-
-
-
-
-
-
-
+        return HttpResponse('Password reset link is invalid. Please request a new password reset. !!', status=400)
 
 
 
