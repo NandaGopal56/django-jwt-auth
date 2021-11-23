@@ -1,4 +1,3 @@
-from django.contrib.messages import api
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
@@ -7,22 +6,20 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 import rest_framework_simplejwt
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.decorators import authentication_classes, permission_classes, api_view
-from .serializers import UserRegistrationSerializer, UserLoginSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
-
-from .tokens import account_activation_token
 from django.contrib.sites.shortcuts import get_current_site
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.core.mail import EmailMessage
-from .models import User
 from django.http import HttpResponse
-from .forms import UserPasswordResetForm
 from django.contrib import messages
-from .tokens import password_reset_token
 from django.contrib.auth import update_session_auth_hash
+from .tokens import password_reset_token, account_activation_token
+from .models import User
+from .forms import UserPasswordResetForm
+from .serializers import UserRegistrationSerializer, UserLoginSerializer
 
 
 class UserRegistrationView(CreateAPIView):
