@@ -5,7 +5,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = User
         fields = ('email', 'password', 'first_name', 'last_name',)
@@ -26,9 +25,10 @@ class UserLoginSerializer(serializers.Serializer):
         email = data.get("email", None)
         password = data.get("password", None)
         user = authenticate(email=email, password=password)
+        print("user: ", user)
         if user is None:
             raise serializers.ValidationError(
-                'A user with this email and password is not found.'
+                'Please check the email id and password again !'
             )
         try:
             access_token = str(RefreshToken.for_user(user).access_token)
@@ -36,10 +36,10 @@ class UserLoginSerializer(serializers.Serializer):
             update_last_login(None, user)
         except User.DoesNotExist:
             raise serializers.ValidationError(
-                'User with given email and password does not exists'
+                'Please check the email id and password again !'
             )
         return {
-            'email':user.email,
+            'email': user.email,
             'access_token': access_token,
             'refresh_token': refresh_token
         }

@@ -11,9 +11,9 @@ class UserAdmin(BaseUserAdmin):
     list_display = ('email', 'admin')
     list_filter = ('admin', 'staff', 'admin')
     fieldsets = (
-        (None, {'fields': ('email', 'password')}),
-        ('Personal info', {'fields': ('first_name', 'last_name')}),
+        ('Personal info', {'fields': ('email', 'password', 'first_name', 'last_name')}),
         ('Permissions', {'fields': ('admin', 'staff', 'active')}),
+        ('provider details', {'fields': ('source_provider', 'google_ID', 'facebook_ID')}),
     )
     # add_fieldsets is not a standard ModelAdmin attribute. UserAdmin
     # overrides get_fieldsets to use this attribute when creating a user.
@@ -33,13 +33,12 @@ admin.site.register(User, UserAdmin)
 
 #BUG in rest-famework-simpleJWT: in rest-famework overwrite the permision to delte oustanding tokens. so you can delete teh users
 #RESOURCE: https://github.com/jazzband/djangorestframework-simplejwt/issues/266
-
 from rest_framework_simplejwt import token_blacklist
-
 class OutstandingTokenAdmin(token_blacklist.admin.OutstandingTokenAdmin):
-
     def has_delete_permission(self, *args, **kwargs):
         return True
+
+
 
 admin.site.unregister(token_blacklist.models.OutstandingToken)
 admin.site.register(token_blacklist.models.OutstandingToken, OutstandingTokenAdmin)

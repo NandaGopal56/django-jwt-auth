@@ -16,6 +16,8 @@ from django.core.mail import EmailMessage
 from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
+from django.conf import settings
+import requests, json
 from .tokens import password_reset_token, account_activation_token
 from .models import User
 from .forms import UserPasswordResetForm
@@ -166,6 +168,56 @@ class UserLoginView(RetrieveAPIView):
         status_code = status.HTTP_200_OK
 
         return Response(response, status=status_code)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+def social_login_Google(request):
+    code = request.data.get("code")
+    data =  {
+                "code": code,
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+                "grant_type": settings.GOOGLE_GRANT_TYPE
+            }
+    headers = {'Content-type': 'application/json'}
+    authenticationTokens = requests.post(settings.GOOGLE_GET_TOKENS_URL, data=json.dumps(data), headers=headers).json()
+    userInfo = requests.get(url = settings.GOOGLE_GET_USERINFO_URL, params = {'access_token': authenticationTokens['access_token']}).json()
+
+    user = User.objects.filter(email=userInfo["email"])
+    print(user)
+
+    return HttpResponse(userInfo, content_type="application/json")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #Blacklist refresh token

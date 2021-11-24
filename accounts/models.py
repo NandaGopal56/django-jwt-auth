@@ -51,12 +51,26 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser):
+
+    PROVIDER_CHOICES = (
+        ("Django", "Django"),
+        ("Google", "Google"),
+        ("Facebook", "Facebook"),
+    )
+
     email = models.EmailField(max_length=254, unique=True)
     first_name = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=50, blank=True, null=True)
     active = models.BooleanField(default=False)
     staff = models.BooleanField(default=False)
     admin = models.BooleanField(default=False)
+
+    source_provider = models.CharField(max_length=15,
+                  choices=PROVIDER_CHOICES,
+                  default="Django")
+    google_ID = models.CharField(max_length=100, null=True, blank=True)
+    facebook_ID = models.CharField(max_length=100, null=True, blank=True)
+
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
