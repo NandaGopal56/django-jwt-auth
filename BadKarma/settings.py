@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Custom apps and installations
     'rest_framework',
+    'corsheaders',
     'rest_framework_simplejwt.token_blacklist', #Blacklist refresh token
     'accounts'
 ]
@@ -52,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'BadKarma.urls'
@@ -118,6 +120,7 @@ USE_L10N = True
 
 USE_TZ = True
 
+CORS_ORIGIN_ALLOW_ALL = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
@@ -184,7 +187,7 @@ EMAIL_PORT = 587
 
 GOOGLE_CLIENT_ID = "596590630682-vbqse12tavim80h9p1uvks5sjo15bamr.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = "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"
-GOOGLE_REDIRECT_URI = "https://clowndev.com/"
+GOOGLE_REDIRECT_URI = "http://localhost:3000/oauth_callback"
 GOOGLE_GRANT_TYPE = "authorization_code"
 GOOGLE_GET_TOKENS_URL = "https://www.googleapis.com/oauth2/v4/token"
 GOOGLE_GET_USERINFO_URL = "https://www.googleapis.com/oauth2/v1/userinfo"

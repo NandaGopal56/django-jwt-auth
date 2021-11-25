@@ -183,14 +183,13 @@ def social_login_Google(request):
             }
     headers = {'Content-type': 'application/json'}
     authenticationTokens = requests.post(settings.GOOGLE_GET_TOKENS_URL, data=json.dumps(data), headers=headers).json()
+    
     userInfo = requests.get(url = settings.GOOGLE_GET_USERINFO_URL, params = {'access_token': authenticationTokens['access_token']}).json()
 
     user = User.objects.filter(email=userInfo["email"])
     print(user)
 
     return HttpResponse(userInfo, content_type="application/json")
-
-
 
 
 
