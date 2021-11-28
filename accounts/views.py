@@ -1,3 +1,5 @@
+from django.contrib import auth
+from django.http.response import JsonResponse
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
@@ -22,7 +24,7 @@ from .tokens import password_reset_token, account_activation_token
 from .models import User
 from .forms import UserPasswordResetForm
 from .serializers import UserRegistrationSerializer, UserLoginSerializer
-
+from django.contrib.auth.models import update_last_login
 
 class UserRegistrationView(CreateAPIView):
 
@@ -170,7 +172,7 @@ class UserLoginView(RetrieveAPIView):
         return Response(response, status=status_code)
 
 
-@api_view(["GET", "POST"])
+@api_view(["POST"])
 @permission_classes([AllowAny])
 def social_login_Google(request):
     code = request.data.get("code")
@@ -184,16 +186,86 @@ def social_login_Google(request):
     headers = {'Content-type': 'application/json'}
     authenticationTokens = requests.post(settings.GOOGLE_GET_TOKENS_URL, data=json.dumps(data), headers=headers).json()
     
+    if 'error' in authenticationTokens:
+        data = {
+            'success': False,
+            'message': "Something went wrong. Please try again.",
+            'extra_message': authenticationTokens['error_description']
+        }
+        return JsonResponse(data, status=400)
+
     userInfo = requests.get(url = settings.GOOGLE_GET_USERINFO_URL, params = {'access_token': authenticationTokens['access_token']}).json()
 
-    user = User.objects.filter(email=userInfo["email"])
-    print(user)
+    data = User.objects.filter(google_ID=userInfo["id"]).values()
+    if data.exists():
+        user = User.objects.get(email=userInfo['email'])
+    else:
+        user = User.objects.create_user(email = userInfo['email'],
+            first_name = userInfo['name'],
+            last_name = userInfo['family_name'],
+            google_ID = userInfo['id'],
+            source_provider = "Google",
+            is_active = True)
+    access_token, refresh_token = get_JWT_tokens_Social_login(user)
+    response = {
+            'success' : True,
+            'status code' : status.HTTP_200_OK,
+            'message': 'User logged in  successfully',
+            'access_token': access_token,
+            'refresh_token': refresh_token
+            }
+    return Response(response, status=status.HTTP_200_OK)
 
-    return HttpResponse(userInfo, content_type="application/json")
 
 
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def social_login_Facebook(request):
+    code = request.data.get("code")
+    params =  {
+                "client_id": settings.FACEBOOK_CLIENT_ID,
+                "redirect_uri": settings.FACEBOOK_REDIRECT_URI,
+                "client_secret": settings.FACEBOOK_CLIENT_SECRET,
+                "code": code,
+            }
+    headers = {'Content-type': 'application/json'}
+    authenticationTokens = requests.get(settings.FACEBOOK_GET_TOKENS_URL, params=params, headers=headers).json()
+    
+    if 'error' in authenticationTokens:
+        data = {
+            'success': False,
+            'message': "Something went wrong. Please try again.",
+            'extra_message': authenticationTokens['error']['message']
+        }
+        return JsonResponse(data, status=400)
+    
+    userInfo = requests.get(url = settings.FACEBOOK_GET_USERINFO_URL, params = {'access_token': authenticationTokens['access_token']}).json()
 
+    data = User.objects.filter(facebook_ID=userInfo["id"]).values()
+    if data.exists():
+        user = User.objects.get(email=userInfo['email'])
+    else:
+        user = User.objects.create_user(email = userInfo['email'],
+            first_name = userInfo['name'],
+            last_name = userInfo['name'],
+            facebook_ID = userInfo['id'],
+            source_provider = "Facebook",
+            is_active = True)
+    access_token, refresh_token = get_JWT_tokens_Social_login(user)
+    response = {
+            'success' : True,
+            'status code' : status.HTTP_200_OK,
+            'message': 'User logged in  successfully',
+            'access_token': access_token,
+            'refresh_token': refresh_token
+            }
+    return Response(response, status=status.HTTP_200_OK)
 
+def get_JWT_tokens_Social_login(user):
+    access_token = str(RefreshToken.for_user(user).access_token)
+    refresh_token = str(RefreshToken.for_user(user))
+    update_last_login(None, user)
+    return access_token, refresh_token
 
 
 
@@ -264,10 +336,39 @@ class UserProfileView_class(RetrieveAPIView):
                 }
         return Response(response, status=status_code)
 
+
 @api_view(['GET'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def UserProfileView_function(request, format=None):
+    try:
+        user_profile = request.user
+        status_code = status.HTTP_200_OK
+        response = {
+            'success': True,
+            'status code': status_code,
+            'message': 'User profile fetched successfully',
+            'data': [{
+                'first_name': user_profile.first_name,
+                'last_name': user_profile.last_name,
+                'email': user_profile.email,
+                }]
+            }
+    except Exception as e:
+        status_code = status.HTTP_400_BAD_REQUEST
+        response = {
+            'success': False,
+            'status code': status.HTTP_400_BAD_REQUEST,
+            'message': 'User does not exists',
+            'error': str(e)
+            }
+    return Response(response, status=status_code)
+
+from .permissions import IsAdmin
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAdmin])
+def admin_ProfileView_function(request, format=None):
     try:
         user_profile = request.user
         status_code = status.HTTP_200_OK

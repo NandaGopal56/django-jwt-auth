@@ -1,18 +1,18 @@
 from django.db import models
+import uuid
 from django.contrib.auth.models import(
     AbstractBaseUser, BaseUserManager
 )
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, first_name, last_name, password=None, is_active=False, is_staff=False, is_admin=False):
+    def create_user(self, email, first_name, last_name, password=None, is_staff=False, is_admin=False, *args, **kwargs):
         if not first_name:
             raise ValueError("Users must have an first name")
         if not last_name:
             raise ValueError("Users must have an last name")
         if not email:
             raise ValueError("Users must have an email address")
-        if not password:
-            raise ValueError("Users must have a password")
+        
         user = self.model(
             email=self.normalize_email(email)
         )
@@ -21,7 +21,10 @@ class UserManager(BaseUserManager):
         user.set_password(password)
         user.staff = is_staff
         user.admin = is_admin
-        user.active = is_active
+        user.active = kwargs.get('is_active', False)
+        user.google_ID = kwargs.get('google_ID', None)
+        user.facebook_ID = kwargs.get('facebook_ID', None)
+        user.source_provider = kwargs.get('source_provider', 'Django')
         user.save(using=self._db)
         return user
 
@@ -58,6 +61,7 @@ class User(AbstractBaseUser):
         ("Facebook", "Facebook"),
     )
 
+    user_id = models.UUIDField(primary_key = True, default = uuid.uuid4, editable = False)
     email = models.EmailField(max_length=254, unique=True)
     first_name = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=50, blank=True, null=True)

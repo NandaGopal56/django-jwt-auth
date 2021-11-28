@@ -165,7 +165,7 @@ SIMPLE_JWT = {
 
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-    'USER_ID_FIELD': 'id',
+    'USER_ID_FIELD': 'user_id',
     'USER_ID_CLAIM': 'user_id',
     'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
 
@@ -192,3 +192,9 @@ GOOGLE_GRANT_TYPE = "authorization_code"
 GOOGLE_GET_TOKENS_URL = "https://www.googleapis.com/oauth2/v4/token"
 GOOGLE_GET_USERINFO_URL = "https://www.googleapis.com/oauth2/v1/userinfo"
 
+
+FACEBOOK_CLIENT_ID = "313309207074548"
+FACEBOOK_CLIENT_SECRET = "858069ac2ecf7378b3a307db1567f254"
+FACEBOOK_REDIRECT_URI = "http://localhost:3000/oauth_callback"
+FACEBOOK_GET_TOKENS_URL = "https://graph.facebook.com/v12.0/oauth/access_token"
+FACEBOOK_GET_USERINFO_URL = "https://graph.facebook.com/v12.0/me?fields=id%2Cname%2Cemail"
