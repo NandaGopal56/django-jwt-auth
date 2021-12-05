@@ -4,11 +4,11 @@ from . import views
 
 urlpatterns = [
     path('signup', views.UserRegistrationView.as_view()),
-    re_path('activate/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
+    path('activate/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
         views.activate_user, name='activate_user'),
 
     path('password_reset_request', views.password_reset_request),
-    re_path('reset/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$', views.resetPassword, name='resetPassword'),
+    path('reset/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$', views.resetPassword, name='resetPassword'),
     
 
     path('social_login_Google', views.social_login_Google, name="social_login_Google"),

@@ -14,7 +14,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.core.mail import EmailMessage
+from django.core.mail import EmailMessage, message
 from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
@@ -187,30 +187,42 @@ def social_login_Google(request):
     authenticationTokens = requests.post(settings.GOOGLE_GET_TOKENS_URL, data=json.dumps(data), headers=headers).json()
     
     if 'error' in authenticationTokens:
-        data = {
+        errorResponse = {
             'success': False,
             'message': "Something went wrong. Please try again.",
             'extra_message': authenticationTokens['error_description']
         }
-        return JsonResponse(data, status=400)
+        return JsonResponse(errorResponse, status=400)
 
     userInfo = requests.get(url = settings.GOOGLE_GET_USERINFO_URL, params = {'access_token': authenticationTokens['access_token']}).json()
 
     data = User.objects.filter(google_ID=userInfo["id"]).values()
     if data.exists():
         user = User.objects.get(email=userInfo['email'])
+        message = "You are signed in successfully"
     else:
-        user = User.objects.create_user(email = userInfo['email'],
-            first_name = userInfo['name'],
-            last_name = userInfo['family_name'],
-            google_ID = userInfo['id'],
-            source_provider = "Google",
-            is_active = True)
+        data = User.objects.filter(email=userInfo["email"]).values('source_provider')
+        if data.exists():
+            if data[0]['source_provider'] == "Django":
+                message = "Your email id is already being used"
+            elif data[0]['source_provider'] == "Google":
+                message = "Your email is already being used from a Google account"
+            elif data[0]['source_provider'] == "Facebook":
+                message = "Your email is already being used from a Facebook account"
+            user = User.objects.get(email=userInfo['email'])
+        else:
+            user = User.objects.create_user(email = userInfo['email'],
+                first_name = userInfo['name'],
+                last_name = userInfo['family_name'],
+                google_ID = userInfo['id'],
+                source_provider = "Google",
+                is_active = True)
+            message = "Your account is setup successfully with Google"
     access_token, refresh_token = get_JWT_tokens_Social_login(user)
     response = {
             'success' : True,
             'status code' : status.HTTP_200_OK,
-            'message': 'User logged in  successfully',
+            'message': message,
             'access_token': access_token,
             'refresh_token': refresh_token
             }
@@ -222,6 +234,7 @@ def social_login_Google(request):
 @permission_classes([AllowAny])
 def social_login_Facebook(request):
     code = request.data.get("code")
+    signUP = True
     params =  {
                 "client_id": settings.FACEBOOK_CLIENT_ID,
                 "redirect_uri": settings.FACEBOOK_REDIRECT_URI,
@@ -232,18 +245,19 @@ def social_login_Facebook(request):
     authenticationTokens = requests.get(settings.FACEBOOK_GET_TOKENS_URL, params=params, headers=headers).json()
     
     if 'error' in authenticationTokens:
-        data = {
+        errorResponse = {
             'success': False,
             'message': "Something went wrong. Please try again.",
             'extra_message': authenticationTokens['error']['message']
         }
-        return JsonResponse(data, status=400)
+        return JsonResponse(errorResponse, status=400)
     
     userInfo = requests.get(url = settings.FACEBOOK_GET_USERINFO_URL, params = {'access_token': authenticationTokens['access_token']}).json()
 
     data = User.objects.filter(facebook_ID=userInfo["id"]).values()
     if data.exists():
         user = User.objects.get(email=userInfo['email'])
+        signUP = False
     else:
         user = User.objects.create_user(email = userInfo['email'],
             first_name = userInfo['name'],
@@ -255,7 +269,7 @@ def social_login_Facebook(request):
     response = {
             'success' : True,
             'status code' : status.HTTP_200_OK,
-            'message': 'User logged in  successfully',
+            'message': 'User signed up successfully' if signUP else "User logged in  successfully",
             'access_token': access_token,
             'refresh_token': refresh_token
             }

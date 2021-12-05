@@ -88,6 +88,17 @@ DATABASES = {
 }
 
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'BadKarma',
+#         'USER': 'Gopal',
+#         'PASSWORD': 'AdminOfDB@12345',
+#         'HOST': 'localhost',
+#         'PORT': '3306',
+#     }
+# }
+
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
 
@@ -182,7 +193,7 @@ SIMPLE_JWT = {
 EMAIL_USE_TLS = True
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_HOST_USER = 'mybadkarma69@gmail.com'
-EMAIL_HOST_PASSWORD = 'bxmxsyfuyccxwsdd'
+EMAIL_HOST_PASSWORD = 'ohmwfmvspsdebove'
 EMAIL_PORT = 587
 
 GOOGLE_CLIENT_ID = "596590630682-vbqse12tavim80h9p1uvks5sjo15bamr.apps.googleusercontent.com"
