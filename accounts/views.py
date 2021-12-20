@@ -14,14 +14,14 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.core.mail import EmailMessage, message
+from django.core.mail import EmailMessage
 from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.conf import settings
 import requests, json
 from .tokens import password_reset_token, account_activation_token
-from .models import User
+from .models import User, SocialAuthenticatedUsers
 from .forms import UserPasswordResetForm
 from .serializers import UserRegistrationSerializer, UserLoginSerializer
 from django.contrib.auth.models import update_last_login
@@ -196,28 +196,30 @@ def social_login_Google(request):
 
     userInfo = requests.get(url = settings.GOOGLE_GET_USERINFO_URL, params = {'access_token': authenticationTokens['access_token']}).json()
 
-    data = User.objects.filter(google_ID=userInfo["id"]).values()
-    if data.exists():
-        user = User.objects.get(email=userInfo['email'])
+    try:
+        user = User.objects.get(google_ID=userInfo["id"])
+        
         message = "You are signed in successfully"
-    else:
-        data = User.objects.filter(email=userInfo["email"]).values('source_provider')
-        if data.exists():
-            if data[0]['source_provider'] == "Django":
-                message = "Your email id is already being used"
-            elif data[0]['source_provider'] == "Google":
-                message = "Your email is already being used from a Google account"
-            elif data[0]['source_provider'] == "Facebook":
-                message = "Your email is already being used from a Facebook account"
-            user = User.objects.get(email=userInfo['email'])
+        
+        if userInfo['email'] == user.get_user_email():
+            #emails are same, no actions needed
+            pass
         else:
-            user = User.objects.create_user(email = userInfo['email'],
-                first_name = userInfo['name'],
-                last_name = userInfo['family_name'],
-                google_ID = userInfo['id'],
-                source_provider = "Google",
-                is_active = True)
-            message = "Your account is setup successfully with Google"
+            #The email of the social account has been changed as compared to our data:- so update it
+            obj = SocialAuthenticatedUsers.objects.get(google_ID = userInfo['id'])  
+            obj.email = userInfo['email']
+            obj.save()
+
+    except User.DoesNotExist:
+        user = User.objects.create_user(email = userInfo['email'],
+            first_name = userInfo['name'],
+            last_name = userInfo['family_name'],
+            google_ID = userInfo['id'],
+            source_provider = "Google",
+            source = "social",
+            is_active = True)
+        message = "Your account is setup successfully with Google"
+
     access_token, refresh_token = get_JWT_tokens_Social_login(user)
     response = {
             'success' : True,
@@ -254,36 +256,46 @@ def social_login_Facebook(request):
     
     userInfo = requests.get(url = settings.FACEBOOK_GET_USERINFO_URL, params = {'access_token': authenticationTokens['access_token']}).json()
 
-    data = User.objects.filter(facebook_ID=userInfo["id"]).values()
-    if data.exists():
-        user = User.objects.get(email=userInfo['email'])
-        signUP = False
-    else:
+    try:
+        user = User.objects.get(facebook_ID=userInfo["id"])
+        
+        message = "You are signed in successfully"
+        
+        if userInfo['email'] == user.get_user_email():
+            #emails are same, no actions needed
+            pass
+        else:
+            #The email of he social account has been changed as compared to our data:- so update it
+            obj = SocialAuthenticatedUsers.objects.get(facebook_ID = userInfo['id'])  
+            obj.email = userInfo['email']
+            obj.save()
+
+    except User.DoesNotExist:
         user = User.objects.create_user(email = userInfo['email'],
             first_name = userInfo['name'],
             last_name = userInfo['name'],
             facebook_ID = userInfo['id'],
             source_provider = "Facebook",
+            source = "social",
             is_active = True)
+        message = "Your account is setup successfully with Google"
+
     access_token, refresh_token = get_JWT_tokens_Social_login(user)
     response = {
             'success' : True,
             'status code' : status.HTTP_200_OK,
-            'message': 'User signed up successfully' if signUP else "User logged in  successfully",
+            'message': message,
             'access_token': access_token,
             'refresh_token': refresh_token
             }
     return Response(response, status=status.HTTP_200_OK)
+
 
 def get_JWT_tokens_Social_login(user):
     access_token = str(RefreshToken.for_user(user).access_token)
     refresh_token = str(RefreshToken.for_user(user))
     update_last_login(None, user)
     return access_token, refresh_token
-
-
-
-
 
 
 
@@ -336,7 +348,7 @@ class UserProfileView_class(RetrieveAPIView):
                 'data': [{
                     'first_name': user_profile.first_name,
                     'last_name': user_profile.last_name,
-                    'email': user_profile.email,
+                    'email': user_profile.get_user_email(),
                     }]
                 }
 
@@ -365,7 +377,7 @@ def UserProfileView_function(request, format=None):
             'data': [{
                 'first_name': user_profile.first_name,
                 'last_name': user_profile.last_name,
-                'email': user_profile.email,
+                'email': user_profile.get_user_email(),
                 }]
             }
     except Exception as e:
@@ -393,7 +405,7 @@ def admin_ProfileView_function(request, format=None):
             'data': [{
                 'first_name': user_profile.first_name,
                 'last_name': user_profile.last_name,
-                'email': user_profile.email,
+                'email': user_profile.get_user_email(),
                 }]
             }
     except Exception as e:

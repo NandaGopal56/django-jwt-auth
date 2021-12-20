@@ -14,6 +14,7 @@ urlpatterns = [
     path('social_login_Google', views.social_login_Google, name="social_login_Google"),
     path('social_login_Facebook', views.social_login_Facebook, name="social_login_Facebook"),
 
+    
     path('token', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'), #Obtain both Access & refresh tokens
     path('token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'), #returns new refresh token and blacklist the previos refresh token 
 

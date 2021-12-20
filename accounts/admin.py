@@ -1,19 +1,19 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth import get_user_model
-from .models import User
+from .models import User, SocialAuthenticatedUsers
 
 class UserAdmin(BaseUserAdmin):
 
     # The fields to be used in displaying the User model.
     # These override the definitions on the base UserAdmin
     # that reference specific fields on auth.User.
-    list_display = ('email', 'admin')
+    list_display = ('user_id', 'email', 'admin')
     list_filter = ('admin', 'staff', 'admin')
     fieldsets = (
         ('Personal info', {'fields': ('email', 'password', 'first_name', 'last_name')}),
         ('Permissions', {'fields': ('admin', 'staff', 'active')}),
-        ('provider details', {'fields': ('source_provider', 'google_ID', 'facebook_ID')}),
+        ('provider details', {'fields': ('socialUserReference','source_provider', 'google_ID', 'facebook_ID')}),
     )
     # add_fieldsets is not a standard ModelAdmin attribute. UserAdmin
     # overrides get_fieldsets to use this attribute when creating a user.
@@ -29,6 +29,7 @@ class UserAdmin(BaseUserAdmin):
 
 
 admin.site.register(User, UserAdmin)
+admin.site.register(SocialAuthenticatedUsers)
 
 
 #BUG in rest-famework-simpleJWT: in rest-famework overwrite the permision to delte oustanding tokens. so you can delete teh users
