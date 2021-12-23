@@ -25,6 +25,8 @@ from .models import User, SocialAuthenticatedUsers
 from .forms import UserPasswordResetForm
 from .serializers import UserRegistrationSerializer, UserLoginSerializer
 from django.contrib.auth.models import update_last_login
+from django.core.exceptions import ValidationError
+
 
 class UserRegistrationView(CreateAPIView):
 
@@ -33,16 +35,37 @@ class UserRegistrationView(CreateAPIView):
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        send_activation_email(request, user, request.data['email'])
-        status_code = status.HTTP_201_CREATED
-        response = {
-            'success' : True,
-            'status code' : status_code,
-            'message': 'User registered  successfully',
-            }
-        
+        try:
+            if not serializer.is_valid():
+                status_code = status.HTTP_400_BAD_REQUEST
+                response = {
+                    'success' : False,
+                    'status code' : status_code,
+                    'message': 'User with this email already exists. Please try a differnt email',
+                    }
+            else:
+                user = serializer.save()
+                send_activation_email(request, user, request.data['email'])
+                status_code = status.HTTP_201_CREATED
+                response = {
+                    'success' : True,
+                    'status code' : status_code,
+                    'message': 'User registered  successfully',
+                    }
+        except ValueError as error:
+            status_code = status.HTTP_400_BAD_REQUEST
+            response = {
+                'success' : False,
+                'status code' : status_code,
+                'message': str(error),
+                }
+        except Exception as e:
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            response = {
+                'success' : False,
+                'status code' : status_code,
+                'message': 'Something went wrong, Please try again.',
+                }
         return Response(response, status=status_code)
 
 def send_activation_email(request, user, email):
@@ -159,15 +182,30 @@ class UserLoginView(RetrieveAPIView):
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        response = {
-            'success' : True,
-            'status code' : status.HTTP_200_OK,
-            'message': 'User logged in  successfully',
-            'access_token': serializer.data['access_token'],
-            'refresh_token': serializer.data['refresh_token']
-            }
-        status_code = status.HTTP_200_OK
+        try:
+            if not serializer.is_valid():
+                status_code = status.HTTP_400_BAD_REQUEST
+                response = {
+                    'success' : False,
+                    'status code' : status_code,
+                    'message': 'Your entered credentials are not correct, please try again',
+                    }
+            else:
+                status_code = status.HTTP_200_OK
+                response = {
+                    'success' : True,
+                    'status code' : status_code,
+                    'message': 'User logged in  successfully',
+                    'access_token': serializer.data['access_token'],
+                    'refresh_token': serializer.data['refresh_token']
+                    }
+        except Exception as e:
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            response = {
+                'success' : False,
+                'status code' : status_code,
+                'message': " Something went wrong, please try again.",
+                }
 
         return Response(response, status=status_code)
 
