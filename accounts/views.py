@@ -1,4 +1,3 @@
-from django.contrib import auth
 from django.http.response import JsonResponse
 from django.shortcuts import render
 from rest_framework import status
@@ -7,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 import rest_framework_simplejwt
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from .authenticate import JWTAuthenticationFromHTTPOnlyCookie
 from rest_framework.decorators import authentication_classes, permission_classes, api_view
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
@@ -19,13 +19,16 @@ from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.conf import settings
-import requests, json
 from .tokens import password_reset_token, account_activation_token
 from .models import User, SocialAuthenticatedUsers
 from .forms import UserPasswordResetForm
 from .serializers import UserRegistrationSerializer, UserLoginSerializer
 from django.contrib.auth.models import update_last_login
-from django.core.exceptions import ValidationError
+from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.exceptions import InvalidToken
+from .permissions import IsAdmin
+import requests, json
 
 
 class UserRegistrationView(CreateAPIView):
@@ -177,22 +180,35 @@ def resetPassword(request, uidb64, token):
 
 class UserLoginView(RetrieveAPIView):
 
+    authentication_classes = []
     permission_classes = (AllowAny,)
     serializer_class = UserLoginSerializer
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
+        response = Response() 
+        
         try:
             if not serializer.is_valid():
                 status_code = status.HTTP_400_BAD_REQUEST
-                response = {
+                response.data = {
                     'success' : False,
                     'status code' : status_code,
                     'message': 'Your entered credentials are not correct, please try again',
                     }
             else:
+                cookie_max_age = 3600 * 24 * 14 # 14 days
+                response.set_cookie(
+                    key = 'refresh_token', 
+                    value = serializer.data['refresh_token'],
+                    max_age = cookie_max_age,
+                    path = '/account/token/refreshtoken',
+                    secure = False,
+                    httponly = True,
+                    samesite = 'Lax',
+                )
                 status_code = status.HTTP_200_OK
-                response = {
+                response.data = {
                     'success' : True,
                     'status code' : status_code,
                     'message': 'User logged in  successfully',
@@ -201,13 +217,14 @@ class UserLoginView(RetrieveAPIView):
                     }
         except Exception as e:
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            response = {
+            response.data = {
                 'success' : False,
                 'status code' : status_code,
-                'message': " Something went wrong, please try again.",
+                'message': "Something went wrong, please try again.",
+                "details": str(e),
                 }
 
-        return Response(response, status=status_code)
+        return response
 
 
 @api_view(["POST"])
@@ -267,7 +284,6 @@ def social_login_Google(request):
             'refresh_token': refresh_token
             }
     return Response(response, status=status.HTTP_200_OK)
-
 
 
 @api_view(["POST"])
@@ -337,22 +353,90 @@ def get_JWT_tokens_Social_login(user):
 
 
 
+class CookieTokenRefreshSerializer(TokenRefreshSerializer):
+    refresh = None
+    def validate(self, attrs):
+        attrs['refresh'] = self.context['request'].COOKIES.get('refresh_token')
+        if attrs['refresh']:
+            return super().validate(attrs)
+        else:
+            raise InvalidToken('No valid token found in cookie \'refresh_token\'')
+
+class CookieTokenRefreshView(TokenRefreshView):
+
+    permission_classes = (AllowAny,)
+    authentication_class = ()
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        if response.data.get('refresh'):
+            cookie_max_age = 3600 * 24 * 14 # 14 days
+            response.set_cookie( key = 'refresh_token',
+                                value = response.data['refresh'], 
+                                path = '/account/token/refreshtoken', 
+                                max_age=cookie_max_age, 
+                                httponly=True,
+                                secure = False,
+                                samesite = 'Lax'
+                            )
+            del response.data['refresh']
+        return super().finalize_response(request, response, *args, **kwargs)
+    serializer_class = CookieTokenRefreshSerializer
 
 
 
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication, JWTAuthenticationFromHTTPOnlyCookie])
+@permission_classes([IsAuthenticated])
+def UserProfileView_function(request, format=None):
+    try:
+        user_profile = request.user
+        status_code = status.HTTP_200_OK
+        response = {
+            'success': True,
+            'status code': status_code,
+            'message': 'User profile fetched successfully',
+            'data': [{
+                'first_name': user_profile.first_name,
+                'last_name': user_profile.last_name,
+                'email': user_profile.get_user_email(),
+                }]
+            }
+    except Exception as e:
+        status_code = status.HTTP_400_BAD_REQUEST
+        response = {
+            'success': False,
+            'status code': status.HTTP_400_BAD_REQUEST,
+            'message': 'User does not exists',
+            'error': str(e)
+            }
+    return Response(response, status=status_code)
 
-
-
-
-
-
-
-
-
-
-
-
-
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAdmin])
+def admin_ProfileView_function(request, format=None):
+    try:
+        user_profile = request.user
+        status_code = status.HTTP_200_OK
+        response = {
+            'success': True,
+            'status code': status_code,
+            'message': 'User profile fetched successfully',
+            'data': [{
+                'first_name': user_profile.first_name,
+                'last_name': user_profile.last_name,
+                'email': user_profile.get_user_email(),
+                }]
+            }
+    except Exception as e:
+        status_code = status.HTTP_400_BAD_REQUEST
+        response = {
+            'success': False,
+            'status code': status.HTTP_400_BAD_REQUEST,
+            'message': 'User does not exists',
+            'error': str(e)
+            }
+    return Response(response, status=status_code)
 
 
 #Blacklist refresh token
@@ -365,9 +449,17 @@ class BlacklistRefreshView(APIView):
         try:
             token = RefreshToken(request.data.get('refresh'))
             token.blacklist()
-            return Response("Success")
+            response = {
+                "success": True,
+                "Message": "Refresh token is blacklisted"
+            }
+            return Response(response, status=status.HTTP_200_OK)
         except rest_framework_simplejwt.exceptions.TokenError:
-            return Response("Token is blacklisted")
+            response = {
+                "success": False,
+                "Message": "Refresh token is not valid"
+            }
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserProfileView_class(RetrieveAPIView):
@@ -399,59 +491,3 @@ class UserProfileView_class(RetrieveAPIView):
                 'error': str(e)
                 }
         return Response(response, status=status_code)
-
-
-@api_view(['GET'])
-@authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
-def UserProfileView_function(request, format=None):
-    try:
-        user_profile = request.user
-        status_code = status.HTTP_200_OK
-        response = {
-            'success': True,
-            'status code': status_code,
-            'message': 'User profile fetched successfully',
-            'data': [{
-                'first_name': user_profile.first_name,
-                'last_name': user_profile.last_name,
-                'email': user_profile.get_user_email(),
-                }]
-            }
-    except Exception as e:
-        status_code = status.HTTP_400_BAD_REQUEST
-        response = {
-            'success': False,
-            'status code': status.HTTP_400_BAD_REQUEST,
-            'message': 'User does not exists',
-            'error': str(e)
-            }
-    return Response(response, status=status_code)
-
-from .permissions import IsAdmin
-@api_view(['GET'])
-@authentication_classes([JWTAuthentication])
-@permission_classes([IsAdmin])
-def admin_ProfileView_function(request, format=None):
-    try:
-        user_profile = request.user
-        status_code = status.HTTP_200_OK
-        response = {
-            'success': True,
-            'status code': status_code,
-            'message': 'User profile fetched successfully',
-            'data': [{
-                'first_name': user_profile.first_name,
-                'last_name': user_profile.last_name,
-                'email': user_profile.get_user_email(),
-                }]
-            }
-    except Exception as e:
-        status_code = status.HTTP_400_BAD_REQUEST
-        response = {
-            'success': False,
-            'status code': status.HTTP_400_BAD_REQUEST,
-            'message': 'User does not exists',
-            'error': str(e)
-            }
-    return Response(response, status=status_code)

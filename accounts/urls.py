@@ -17,6 +17,7 @@ urlpatterns = [
     
     path('token', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'), #Obtain both Access & refresh tokens
     path('token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'), #returns new refresh token and blacklist the previos refresh token 
+    path('token/refreshtoken', views.CookieTokenRefreshView.as_view(), name='token_refresh'), #returns new refresh token and blacklist the previos refresh token 
 
     path('signin', views.UserLoginView.as_view()),  #Get both tokens when credentials are correct
     path('signout', views.BlacklistRefreshView.as_view()),   #Blacklist refresh token but access token will be active
